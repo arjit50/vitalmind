@@ -4,6 +4,8 @@ import HomePage from './pages/HomePage'
 import SignupPage from './pages/SignupPage'
 import LoginPage from './pages/LoginPage'
 import ChatPage from './pages/ChatPage'
+import ProfilePage from './pages/ProfilePage'
+import ReportPage from './pages/ReportPage'
 import { Routes, Route } from 'react-router-dom'
 import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -43,7 +45,7 @@ const App = () => {
           pointerEvents: 'none',
           zIndex: 9999,
           transform: 'translate(-50%, -50%)',
-          // This allows the text underneath to invert and remain visible
+          
           mixBlendMode: 'difference' 
         }}
       />
@@ -55,6 +57,16 @@ const App = () => {
         <Route path="/chat" element={
           <ProtectedRoute>
             <ChatPage/>
+          </ProtectedRoute>
+        }/>
+        <Route path="/profile" element={
+          <ProtectedRoute>
+            <ProfilePage/>
+          </ProtectedRoute>
+        }/>
+        <Route path="/report-analysis" element={
+          <ProtectedRoute>
+            <ReportPage/>
           </ProtectedRoute>
         }/>
       </Routes>

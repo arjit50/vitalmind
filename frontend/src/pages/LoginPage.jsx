@@ -31,10 +31,10 @@ const LoginPage = () => {
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-emerald-500 selection:text-black flex flex-col relative overflow-hidden">
       
-      {/* Background Glow */}
+
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-600/15 rounded-full blur-[120px] pointer-events-none"></div>
 
-      {/* Navbar / Back Button */}
+
       <nav className="relative z-10 flex items-center justify-between px-6 py-6 max-w-7xl mx-auto w-full">
         <Link to="/" className="flex items-center gap-2 group cursor-pointer text-gray-400 hover:text-white transition-colors">
           <ArrowLeft className="w-5 h-5 group-hover:-translate-x-1 transition-transform" />
@@ -47,11 +47,11 @@ const LoginPage = () => {
         </div>
       </nav>
 
-      {/* Main Content */}
+
       <main className="flex-1 flex items-center justify-center relative z-10 px-4">
         <div className="w-full max-w-md">
           
-          {/* Header Typography */}
+      
           <div className="mb-10 text-center">
             <h2 className="text-4xl md:text-5xl font-light mb-2">
               Welcome <span className="font-serif italic text-emerald-400">Back.</span>
@@ -59,17 +59,17 @@ const LoginPage = () => {
             <p className="text-gray-400 text-sm">Log in to access your health dashboard.</p>
           </div>
 
-          {/* Error Message */}
+     
           {error && (
             <div className="mb-4 p-3 bg-red-500/10 border border-red-500/50 rounded text-red-400 text-sm">
               {error}
             </div>
           )}
 
-          {/* Form */}
+    
           <form className="space-y-5" onSubmit={handleSubmit}>
             
-            {/* Email Input */}
+     
             <div className="group">
               <label className="block text-xs uppercase tracking-wider text-gray-500 mb-2 group-focus-within:text-emerald-400 transition-colors">Email Address</label>
               <div className="relative">
@@ -85,7 +85,7 @@ const LoginPage = () => {
               </div>
             </div>
 
-            {/* Password Input */}
+        
             <div className="group">
               <label className="block text-xs uppercase tracking-wider text-gray-500 mb-2 group-focus-within:text-emerald-400 transition-colors">Password</label>
               <div className="relative">
@@ -101,7 +101,6 @@ const LoginPage = () => {
               </div>
             </div>
 
-            {/* Submit Button */}
             <button 
               type="submit"
               disabled={loading}

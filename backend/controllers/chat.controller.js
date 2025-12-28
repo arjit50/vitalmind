@@ -146,3 +146,25 @@ Stay focused on health-related topics only.`,
         res.status(500).json({ message: error.message });
     }
 };
+
+// DELETE CHAT
+export const deleteChat = async (req, res) => {
+    try {
+        const { chatId } = req.params;
+        const userId = req.userId;
+
+        const chat = await Chat.findOne({ _id: chatId, userId });
+        if (!chat) {
+            return res.status(404).json({ message: "Chat not found" });
+        }
+
+        // Delete the chat and all associated messages
+        await Chat.findByIdAndDelete(chatId);
+        await Message.deleteMany({ chatId });
+
+        res.status(200).json({ message: "Chat deleted successfully" });
+    } catch (error) {
+        console.error("Delete chat error:", error);
+        res.status(500).json({ message: error.message });
+    }
+};

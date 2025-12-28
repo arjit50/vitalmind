@@ -8,11 +8,12 @@ import FeatureSection from './FeatureCard';
 import Footer from '../components/Footer';
 import ElasticString from '../components/ElasticString';
 
+
 const HomePage = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   
-  // State for the customized logout prompt
+
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   
   const container = useRef();
@@ -52,7 +53,7 @@ const HomePage = () => {
 
   }, { scope: container });
 
-  // Animation for the Modal opening
+ 
   useEffect(() => {
     if (showLogoutModal && modalRef.current) {
       gsap.fromTo(modalRef.current, 
@@ -71,17 +72,17 @@ const HomePage = () => {
   return (
     <div ref={container} className="min-h-screen bg-[#0a0a0a] text-white font-sans selection:bg-emerald-500 selection:text-black overflow-x-hidden relative">
       
-      {/* Background Glow */}
+    
       <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-emerald-600/20 rounded-full blur-[120px] pointer-events-none z-0"></div>
 
-      {/* --- CUSTOM LOGOUT MODAL --- */}
+     
       {showLogoutModal && (
         <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 backdrop-blur-sm">
           <div 
             ref={modalRef}
             className="bg-[#151515] border border-gray-800 p-8 rounded-2xl w-[90%] max-w-md shadow-2xl relative"
           >
-            {/* Close Icon (Top Right) */}
+           
             <button 
               onClick={() => setShowLogoutModal(false)}
               className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
@@ -119,7 +120,7 @@ const HomePage = () => {
         </div>
       )}
 
-      {/* Navbar */}
+     
       <nav className="nav-item relative z-10 flex items-center justify-between px-6 py-6 max-w-7xl mx-auto">
         <div className="flex items-center gap-2 cursor-pointer">
           <HeartPulse className="w-8 h-8 text-white" />
@@ -137,7 +138,7 @@ const HomePage = () => {
         </div>
 
         {user ? (
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 cursor-pointer" onClick={() => navigate('/profile')} >
             <div className="flex items-center gap-3 px-4 py-2 bg-[#1a1a1a] rounded-lg border border-gray-800">
               <div className="w-8 h-8 rounded-full bg-emerald-900/50 flex items-center justify-center text-emerald-400">
                 <User className="w-4 h-4" />
@@ -145,7 +146,7 @@ const HomePage = () => {
               <span className="text-sm font-medium text-gray-200">{user.username}</span>
             </div>
             
-            {/* MODIFIED LOGOUT BUTTON -> Triggers Modal */}
+        
             <button 
               onClick={() => setShowLogoutModal(true)}
               className="p-2 rounded-lg hover:bg-[#1a1a1a] border border-gray-800 hover:border-red-500/50 transition-all group"
@@ -166,7 +167,7 @@ const HomePage = () => {
         )}
       </nav>
 
-      {/* Hero Section */}
+     
       <main className="relative z-10 flex flex-col items-center justify-center mt-16 md:mt-24 px-4 text-center">
         
         <div className="max-w-5xl mx-auto">
@@ -200,7 +201,7 @@ const HomePage = () => {
 
       </main>
 
-      {/* Stats Footer */}
+    
       <footer className="relative z-10 mt-24 md:mt-32 pb-12 max-w-5xl mx-auto px-4">
         <div className="flex flex-col md:flex-row justify-center items-center gap-10 md:gap-24 text-center">
           
