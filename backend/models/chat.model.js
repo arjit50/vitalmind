@@ -9,8 +9,7 @@ const chatSchema = new mongoose.Schema({
   title: {
     type: String,
     default: "New Chat"
-    // You can update this later with the first 5 words of the user's prompt
-    // e.g., "Symptoms of mild fever..."
+   
   },
   createdAt: {
     type: Date,

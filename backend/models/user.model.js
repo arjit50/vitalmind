@@ -23,10 +23,10 @@ const userSchema = new mongoose.Schema({
         enum: ['Male', 'Female', 'Other', 'Prefer not to say', ''],
         default: ''
     },
-    height: { // in cm
+    height: {
         type: Number
     },
-    weight: { // in kg
+    weight: { 
         type: Number
     },
     bloodType: {

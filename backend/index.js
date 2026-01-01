@@ -17,7 +17,7 @@ dbConnect()
 // Middleware
 app.use(cors({
     origin: 'http://localhost:5173',
-    credentials: true
+    credentials: true //allow cookies and authorization headers to be sent from frontend to backend
 }))
 app.use(express.json())
 app.use(cookieParser())

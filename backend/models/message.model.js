@@ -8,11 +8,11 @@ const messageSchema = new mongoose.Schema({
   },
   sender: {
     type: String,
-    enum: ['user', 'ai'], // Who sent the message?
+    enum: ['user', 'ai'], 
     required: true
   },
   content: {
-    type: String, // The actual text: "I have a headache"
+    type: String, 
     required: true
   },
   timestamp: {
