@@ -11,25 +11,26 @@ import analysisRouter from "./routes/analysis.routes.js"
 
 const app = express()
 
-// Database connection
+
 dbConnect()
 
-// Middleware
+
 app.use(cors({
     origin: 'http://localhost:5173',
-    credentials: true //allow cookies and authorization headers to be sent from frontend to backend
+    credentials: true 
 }))
+
 app.use(express.json())
 app.use(cookieParser())
 
-// Routes
+
 app.use('/api/auth', authRouter)
 app.use('/api/chat', chatRouter)
 app.use('/api/user', userRouter)
 app.use('/api/analysis', analysisRouter)
 
 app.get('/', (req, res) => {
-    // res.send("VitalMind API is running")
+    res.send("VitalMind API is running")
 })
 
 

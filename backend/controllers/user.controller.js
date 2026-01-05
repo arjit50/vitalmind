@@ -1,6 +1,6 @@
 import User from "../models/user.model.js";
 
-// GET USER PROFILE
+
 export const getUserProfile = async (req, res) => {
     try {
         const userId = req.userId;
@@ -17,16 +17,16 @@ export const getUserProfile = async (req, res) => {
     }
 };
 
-// UPDATE USER PROFILE
+
 export const updateUserProfile = async (req, res) => {
     try {
         const userId = req.userId;
         const updates = req.body;
 
-        // Prevent password update from this endpoint for security
+        
         delete updates.password;
-        delete updates.email; // Usually require separate flow for email change
-        delete updates.username; // Or allow it depending on requirements
+        delete updates.email; 
+        delete updates.username; 
 
         const user = await User.findByIdAndUpdate(
             userId,

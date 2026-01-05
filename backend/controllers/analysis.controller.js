@@ -3,7 +3,7 @@ import Tesseract from "tesseract.js";
 import fs from "fs";
 import path from "path";
 
-// ANALYZE REPORT
+
 export const analyzeReport = async (req, res) => {
     try {
         if (!req.file) {
@@ -12,7 +12,7 @@ export const analyzeReport = async (req, res) => {
 
         const imagePath = req.file.path;
 
-        // 1. Perform OCR using Tesseract.js
+        
         console.log("Starting OCR processing...");
         const { data: { text } } = await Tesseract.recognize(
             imagePath,
@@ -20,9 +20,9 @@ export const analyzeReport = async (req, res) => {
             { logger: m => console.log(m) }
         );
 
-        console.log("OCR Text extracted:", text.substring(0, 100) + "...");
+        // console.log("OCR Text extracted:", text.substring(0, 100) + "...");
 
-        // 2. Send text to AI for analysis
+      
         const groq = new Groq({
             apiKey: process.env.GROQ_API_KEY,
         });
@@ -57,7 +57,7 @@ export const analyzeReport = async (req, res) => {
 
         const analysis = JSON.parse(completion.choices[0].message.content);
 
-        // Cleanup: Delete the uploaded file to save space
+        
         fs.unlinkSync(imagePath);
 
         res.status(200).json({
@@ -68,7 +68,7 @@ export const analyzeReport = async (req, res) => {
 
     } catch (error) {
         console.error("Analysis error:", error);
-        // Attempt to delete file if it exists and error occurred
+        
         if (req.file && req.file.path && fs.existsSync(req.file.path)) {
             fs.unlinkSync(req.file.path);
         }

@@ -4,7 +4,7 @@ import { getUserProfile, updateUserProfile } from '../controllers/user.controlle
 
 const router = express.Router();
 
-// All routes require authentication
+
 router.use(authenticateUser);
 
 router.get('/profile', getUserProfile);

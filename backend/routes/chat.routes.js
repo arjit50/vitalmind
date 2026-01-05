@@ -10,10 +10,10 @@ import {
 
 const router = express.Router();
 
-// All routes require authentication
+
 router.use(authenticateUser);
 
-// Chat routes
+
 router.post('/new', createNewChat);
 router.get('/history', getChatHistory);
 router.get('/:chatId/messages', getChatMessages);

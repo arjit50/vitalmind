@@ -2,7 +2,7 @@ import Groq from "groq-sdk";
 import Chat from "../models/chat.model.js";
 import Message from "../models/message.model.js";
 
-//  CREATE CHAT
+
 export const createNewChat = async (req, res) => {
     try {
         const { title } = req.body;
@@ -23,7 +23,8 @@ export const createNewChat = async (req, res) => {
     }
 };
 
-//  GET CHAT HISTORY
+
+
 export const getChatHistory = async (req, res) => {
     try {
         const userId = req.userId;
@@ -39,7 +40,8 @@ export const getChatHistory = async (req, res) => {
     }
 };
 
-//  GET CHAT MESSAGES
+
+
 export const getChatMessages = async (req, res) => {
     try {
         const { chatId } = req.params;
@@ -60,7 +62,7 @@ export const getChatMessages = async (req, res) => {
     }
 };
 
-// SEND MESSAGE
+
 export const sendMessage = async (req, res) => {
     try {
         const groq = new Groq({
@@ -126,9 +128,9 @@ Stay focused on health-related topics only.`,
         const aiResponse =
             completion.choices?.[0]?.message?.content || "No response";
 
-        // Update chat title based on first message BEFORE sending response
-        // previousMessages.length === 1 means only the user message we just created exists
-        if (previousMessages.length === 1) {
+       
+
+            if (previousMessages.length === 1) {
             const titleWords = content.trim().split(' ').slice(0, 5).join(' ');
             const newTitle = titleWords.length < content.length ? `${titleWords}...` : titleWords;
             await Chat.findByIdAndUpdate(chatId, { title: newTitle });
@@ -147,7 +149,8 @@ Stay focused on health-related topics only.`,
     }
 };
 
-// DELETE CHAT
+
+
 export const deleteChat = async (req, res) => {
     try {
         const { chatId } = req.params;
@@ -158,7 +161,7 @@ export const deleteChat = async (req, res) => {
             return res.status(404).json({ message: "Chat not found" });
         }
 
-        // Delete the chat and all associated messages
+        
         await Chat.findByIdAndDelete(chatId);
         await Message.deleteMany({ chatId });
 
