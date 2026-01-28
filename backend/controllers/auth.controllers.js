@@ -23,13 +23,14 @@ export const register = async (req, res) => {
         })
 
 
-        const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: "7d" })
+        const expiryDays = parseInt(process.env.JWT_EXPIRY_DAYS) || 7;
+        const token = jwt.sign({ id: newUser._id }, process.env.JWT_SECRET, { expiresIn: `${expiryDays}d` })
 
         res.cookie('token', token, {
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict',
-            maxAge: 7 * 24 * 60 * 60 * 1000
+            maxAge: expiryDays * 24 * 60 * 60 * 1000
         })
 
         return res.status(201).json({ message: "User created successfully", user: { id: newUser._id, username: newUser.username, email: newUser.email } })
@@ -57,13 +58,14 @@ export const login = async (req, res) => {
 
         if (!isMatch) return res.status(400).json({ message: "Invalid credentials" })
 
-        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: "7d" })
+        const expiryDays = parseInt(process.env.JWT_EXPIRY_DAYS) || 7;
+        const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: `${expiryDays}d` })
 
         res.cookie('token', token, {
-            httpOnly: true, 
+            httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             sameSite: 'strict',
-            maxAge: 7 * 24 * 60 * 60 * 1000
+            maxAge: expiryDays * 24 * 60 * 60 * 1000
         })
 
         return res.status(200).json({ message: "User logged in successfully", user: { id: user._id, username: user.username, email: user.email } })
