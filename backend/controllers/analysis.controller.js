@@ -1,7 +1,7 @@
-import Groq from "groq-sdk";
 import Tesseract from "tesseract.js";
 import fs from "fs";
-import path from "path";
+import { runReportAnalysis } from "../utils/reportAgent.js";
+import { checkEmergency, checkOutOfScope } from "../utils/safetyRules.js";
 
 
 export const analyzeReport = async (req, res) => {
@@ -12,7 +12,6 @@ export const analyzeReport = async (req, res) => {
 
         const imagePath = req.file.path;
 
-        
         console.log("Starting OCR processing...");
         const { data: { text } } = await Tesseract.recognize(
             imagePath,
@@ -20,44 +19,45 @@ export const analyzeReport = async (req, res) => {
             { logger: m => console.log(m) }
         );
 
-        // console.log("OCR Text extracted:", text.substring(0, 100) + "...");
-
-      
-        const groq = new Groq({
-            apiKey: process.env.GROQ_API_KEY,
-        });
-
-        const systemPrompt = `You are an expert medical report analyzer. Your goal is to explain medical reports to patients in simple, easy-to-understand language.
-
-        Input: Raw text extracted from a medical report (blood test, lab result, etc.) via OCR.
-
-        Output Format (JSON):
-        {
-            "summary": "A simple 2-3 sentence summary of the overall health status based on the report.",
-            "normalFindings": ["List of parameters that are within normal range"],
-            "abnormalFindings": ["List of parameters that are out of range, with a brief simple explanation of what that means"],
-            "recommendations": "General healthy lifestyle tips based on the findings (NOT medical advice)"
+        if (!text || text.trim().length < 10) {
+            fs.unlinkSync(imagePath);
+            return res.status(400).json({
+                message: "Could not extract enough text from the image. Please ensure the photo is clear and well-lit."
+            });
         }
 
-        Rules:
-        - If the text is gibberish or not a medical report, return a summary stating that the image could not be analyzed.
-        - Do NOT give medical diagnosis or prescribe medication.
-        - Highlight urgent values if any (e.g. extremely high sugar).
-        - Keep the tone reassuring and professional.
-        `;
+        // --- 1. Safety Rules Layer ---
+        const emergencyMatch = checkEmergency(text);
+        if (emergencyMatch) {
+            fs.unlinkSync(imagePath);
+            return res.status(200).json({
+                success: true,
+                safetyAlert: true,
+                analysis: {
+                    summary: `EMERGENCY DETECTED: We detected keywords related to "${emergencyMatch}". This may be a critical situation.`,
+                    recommendations: "PLEASE SEEK IMMEDIATE MEDICAL ATTENTION. Call emergency services or go to the nearest hospital."
+                }
+            });
+        }
 
-        const completion = await groq.chat.completions.create({
-            model: "llama-3.3-70b-versatile",
-            messages: [
-                { role: "system", content: systemPrompt },
-                { role: "user", content: `Here is the text from the report:\n\n${text}` }
-            ],
-            response_format: { type: "json_object" }
-        });
+        const outOfScopeMatch = checkOutOfScope(text);
+        if (outOfScopeMatch) {
+            fs.unlinkSync(imagePath);
+            return res.status(200).json({
+                success: true,
+                outOfScope: true,
+                analysis: {
+                    summary: "The analysis appears to be for a non-medical document.",
+                    recommendations: "Please upload a valid medical report (e.g., blood test, X-ray report)."
+                }
+            });
+        }
 
-        const analysis = JSON.parse(completion.choices[0].message.content);
+        // --- 2. Agentic Core ---
+        console.log("Starting Agentic Report Analysis...");
+        const analysis = await runReportAnalysis(text);
 
-        
+        // Cleanup
         fs.unlinkSync(imagePath);
 
         res.status(200).json({
@@ -68,7 +68,7 @@ export const analyzeReport = async (req, res) => {
 
     } catch (error) {
         console.error("Analysis error:", error);
-        
+
         if (req.file && req.file.path && fs.existsSync(req.file.path)) {
             fs.unlinkSync(req.file.path);
         }

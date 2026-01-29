@@ -1,4 +1,6 @@
-import Groq from "groq-sdk";
+
+import { performSafetyCheck } from "../utils/safetyRules.js";
+import { runMedicalAgent } from "../utils/medicalAgent.js";
 import Chat from "../models/chat.model.js";
 import Message from "../models/message.model.js";
 
@@ -65,16 +67,22 @@ export const getChatMessages = async (req, res) => {
 
 export const sendMessage = async (req, res) => {
     try {
-        const groq = new Groq({
-            apiKey: process.env.GROQ_API_KEY,
-        });
-
         const { chatId } = req.params;
         const { content } = req.body;
         const userId = req.userId;
 
         if (!content || !content.trim()) {
             return res.status(400).json({ message: "Message content is required" });
+        }
+
+        // 1. Safety Check
+        const safetyResult = performSafetyCheck(content);
+        if (!safetyResult.isSafe) {
+            return res.status(400).json({
+                message: safetyResult.message,
+                safetyViolation: true,
+                type: safetyResult.type
+            });
         }
 
         const chat = await Chat.findOne({ _id: chatId, userId });
@@ -88,49 +96,21 @@ export const sendMessage = async (req, res) => {
             content: content.trim(),
         });
 
+        // 2. Fetch History for Agent
         const previousMessages = await Message.find({ chatId })
             .sort({ timestamp: 1 })
-            .limit(10);
+            .limit(10); // Context window
 
         const conversationHistory = previousMessages.map(msg => ({
-            role: msg.sender === "user" ? "user" : "assistant",
+            role: msg.sender,
             content: msg.content,
         }));
 
-        const systemPrompt = {
-            role: "system",
-            content: `You are VitalMind, a specialized AI health assistant. Your role is STRICTLY limited to health, wellness, and medical topics.
+        // 3. Run Medical Agent
+        const aiResponse = await runMedicalAgent(content, conversationHistory);
 
-CORE RESPONSIBILITIES:
-- Answer questions about symptoms, diseases, medications, and treatments
-- Provide wellness tips, nutrition advice, and fitness guidance
-- Discuss mental health, preventive care, and healthy lifestyle habits
-- Offer general health information and medical terminology explanations
-
-STRICT BOUNDARIES:
-- If a user asks about non-health topics (politics, entertainment, technology, general knowledge, coding, etc.), politely decline and redirect them back to health topics
-- Response format for non-health questions: "I'm VitalMind, your health assistant. I can only help with health, wellness, and medical questions. Please ask me something related to your health, symptoms, nutrition, fitness, or general wellness."
-
-IMPORTANT REMINDERS:
-- Always include medical disclaimers for serious conditions
-- Encourage users to consult healthcare professionals for diagnosis
-- Be empathetic, professional, and supportive
-- Never provide emergency medical advice - direct to emergency services if needed
-
-Stay focused on health-related topics only.`,
-        };
-
-        const completion = await groq.chat.completions.create({
-            model: "llama-3.3-70b-versatile",
-            messages: [systemPrompt, ...conversationHistory],
-        });
-
-        const aiResponse =
-            completion.choices?.[0]?.message?.content || "No response";
-
-       
-
-            if (previousMessages.length === 1) {
+        // Update title if it's the first message
+        if (previousMessages.length <= 1) { // Changed to <= 1 because we just added the user message
             const titleWords = content.trim().split(' ').slice(0, 5).join(' ');
             const newTitle = titleWords.length < content.length ? `${titleWords}...` : titleWords;
             await Chat.findByIdAndUpdate(chatId, { title: newTitle });
@@ -161,7 +141,7 @@ export const deleteChat = async (req, res) => {
             return res.status(404).json({ message: "Chat not found" });
         }
 
-        
+
         await Chat.findByIdAndDelete(chatId);
         await Message.deleteMany({ chatId });
 
