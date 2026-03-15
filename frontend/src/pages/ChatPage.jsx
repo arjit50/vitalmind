@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   HeartPulse, Send, Plus, MessageSquare,
-  Settings, LogOut, User, Menu, X, AlertCircle, Trash2, FileText
+  Settings, LogOut, User, Menu, X, AlertCircle, Trash2, FileText, Camera
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -26,11 +26,29 @@ const ChatPage = () => {
   const [chatToDelete, setChatToDelete] = useState(null);
 
   const messagesEndRef = useRef(null);
+  const containerRef = useRef(null);
   const typingIntervalRef = useRef(null);
   const modalRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const isAtBottomRef = useRef(true);
 
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  // Handle manual scroll to detect if user is at bottom
+  const handleScroll = () => {
+    if (!containerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+    // Check if user is within 100px of bottom
+    const atBottom = scrollHeight - scrollTop - clientHeight < 100;
+    isAtBottomRef.current = atBottom;
+  };
+
+  const scrollToBottom = (force = false) => {
+    if (force || isAtBottomRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  };
 
 
   useEffect(() => {
@@ -88,12 +106,14 @@ const ChatPage = () => {
 
   // Scroll to bottom when messages change
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, typingText]);
+    // Force scroll on new user messages or first load
+    scrollToBottom(true);
+  }, [messages.length]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  // Handle typing text scroll (less aggressive)
+  useEffect(() => {
+    scrollToBottom();
+  }, [typingText]);
 
   const loadChatHistory = async () => {
     try {
@@ -174,15 +194,107 @@ const ChatPage = () => {
       console.error('Error sending message:', error);
       setMessages(prev => prev.slice(0, -1));
 
+      // Get error message from response if available (e.g., safety violation)
+      const serverMessage = error.response?.data?.message || 'Sorry, there was an error processing your message. Please try again.';
+
       const errorMsg = {
         sender: 'ai',
-        content: 'Sorry, there was an error processing your message. Please try again.',
+        content: serverMessage,
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMsg]);
     } finally {
       setLoading(false);
     }
+  };
+
+  const processImageFile = async (file) => {
+    if (!file) return;
+
+    // Check size (e.g., 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      alert("File size too large. Please select an image under 5MB.");
+      return;
+    }
+
+    let chatId = currentChatId;
+    setLoading(true);
+
+    try {
+      if (!chatId) {
+        const data = await chatAPI.createNewChat();
+        chatId = data.chat._id;
+        setCurrentChatId(chatId);
+        await loadChatHistory();
+      }
+
+      const formData = new FormData();
+      formData.append('image', file);
+
+      // Optimistic user message with local preview
+      const localImageUrl = URL.createObjectURL(file);
+      const optimisticUserMsg = {
+        sender: 'user',
+        imageUrl: localImageUrl,
+        content: "Shared a medicine image for identification.",
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, optimisticUserMsg]);
+
+      const data = await chatAPI.uploadMedicineImage(chatId, formData);
+
+      // Replace optimistic message or update it
+      setMessages(prev => {
+        const updated = [...prev];
+        updated[updated.length - 1] = data.userMessage;
+        return updated;
+      });
+
+      setFullAiResponse(data.aiMessage.content);
+      setIsTyping(true);
+
+      // Refresh history to show updated title if this was a new chat
+      await loadChatHistory();
+
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      alert("Failed to upload image. Please try again.");
+      setMessages(prev => prev.slice(0, -1));
+    } finally {
+      setLoading(false);
+      // Reset input
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    processImageFile(file);
+  };
+
+  const handlePaste = (e) => {
+    const items = e.clipboardData?.items;
+    if (items) {
+      for (let i = 0; i < items.length; i++) {
+        if (items[i].type.indexOf('image') !== -1) {
+          const file = items[i].getAsFile();
+          processImageFile(file);
+          break;
+        }
+      }
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files[0];
+    if (file && file.type.startsWith('image/')) {
+      processImageFile(file);
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
   };
 
   // --- UPDATED LOGOUT LOGIC ---
@@ -423,7 +535,11 @@ const ChatPage = () => {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-emerald-600/5 rounded-full blur-[100px] pointer-events-none"></div>
 
 
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 flex flex-col items-center">
+        <div 
+          ref={containerRef}
+          onScroll={handleScroll}
+          className="flex-1 overflow-y-auto p-4 md:p-8 flex flex-col items-center custom-scrollbar scroll-smooth"
+        >
 
           {messages.length === 0 ? (
 
@@ -444,9 +560,18 @@ const ChatPage = () => {
               {messages.map((message, index) => (
                 <div key={index} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
                   <div className={`max-w-[80%] ${message.sender === 'user'
-                      ? 'bg-emerald-400 text-black'
-                      : 'bg-[#1a1a1a] text-white border border-gray-800'
-                    } rounded-2xl px-5 py-3`}>
+                    ? 'bg-emerald-400 text-black'
+                    : 'bg-[#1a1a1a] text-white border border-gray-800'
+                    } rounded-2xl px-5 py-3 shadow-sm`}>
+                    {message.imageUrl && (
+                      <div className="mb-2 overflow-hidden rounded-lg">
+                        <img
+                          src={message.imageUrl}
+                          alt="Medicine"
+                          className="max-w-full h-auto max-h-60 object-contain rounded-md"
+                        />
+                      </div>
+                    )}
                     {message.sender === 'user' ? (
                       <p className="text-sm md:text-base whitespace-pre-wrap">{message.content}</p>
                     ) : (
@@ -491,10 +616,31 @@ const ChatPage = () => {
           <form onSubmit={handleSendMessage}>
             <div className="relative flex items-end gap-2 bg-[#1a1a1a] border border-gray-700/50 rounded-2xl p-2 md:p-3 shadow-lg focus-within:border-emerald-500/50 focus-within:ring-1 focus-within:ring-emerald-500/20 transition-all">
 
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageUpload}
+                accept="image/*"
+                className="hidden"
+              />
+
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={loading}
+                className="p-2.5 text-gray-400 hover:text-emerald-400 hover:bg-emerald-500/10 rounded-xl transition-all"
+                title="Identify Medicine Image"
+              >
+                <Camera className="w-5 h-5" />
+              </button>
+
               <textarea
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
+                onPaste={handlePaste}
+                onDrop={handleDrop}
+                onDragOver={handleDragOver}
                 placeholder="Ask anything about your health..."
                 className="w-full bg-transparent border-none text-white placeholder-gray-500 text-sm md:text-base resize-none max-h-32 min-h-[44px] py-3 px-2 focus:ring-0 scrollbar-hide"
                 rows={1}
@@ -505,8 +651,8 @@ const ChatPage = () => {
                 type="submit"
                 disabled={!input.trim() || loading}
                 className={`p-2 rounded-xl flex items-center justify-center transition-all duration-200 ${input.trim() && !loading
-                    ? 'bg-emerald-400 text-black hover:bg-emerald-300 cursor-pointer'
-                    : 'bg-[#2a2a2a] text-gray-500 cursor-not-allowed'
+                  ? 'bg-emerald-400 text-black hover:bg-emerald-300 cursor-pointer'
+                  : 'bg-[#2a2a2a] text-gray-500 cursor-not-allowed'
                   }`}
               >
                 <Send className="w-5 h-5" />

@@ -8,12 +8,23 @@ const messageSchema = new mongoose.Schema({
   },
   sender: {
     type: String,
-    enum: ['user', 'ai'], 
+    enum: ['user', 'ai'],
     required: true
   },
   content: {
-    type: String, 
-    required: true
+    type: String,
+    required: false
+  },
+  imageUrl: {
+    type: String
+  },
+  medicineInfo: {
+    name: String,
+    purpose: String,
+    usage: String,
+    timing: String,
+    sideEffects: String,
+    safetyWarnings: String
   },
   timestamp: {
     type: Date,

@@ -41,6 +41,7 @@ const App = () => {
       <div className="bg-[#0a0a0a] min-h-screen">
         <div
           ref={circleRef}
+          className="hidden md:block"
           style={{
             position: 'fixed',
             top: 0,
@@ -52,7 +53,6 @@ const App = () => {
             pointerEvents: 'none',
             zIndex: 9999,
             transform: 'translate(-50%, -50%)',
-
             mixBlendMode: 'difference'
           }}
         />

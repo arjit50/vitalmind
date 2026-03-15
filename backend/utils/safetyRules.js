@@ -7,19 +7,8 @@ const EMERGENCY_KEYWORDS = [
     "suicide",
     "kill myself",
     "end my life",
-    "overdose",
-    "bleeding heavily",
-    "heart attack",
-    "stroke",
-    "difficulty breathing",
-    "poison",
     "swallowed pills",
-    "unconscious",
-    "seizure",
-    "severe pain",
-    "broken bone",
-    "deep cut",
-    "severe burn"
+    "poison"
 ];
 
 const OUT_OF_SCOPE_KEYWORDS = [

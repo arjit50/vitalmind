@@ -8,9 +8,12 @@ import authRouter from "./routes/auth.routes.js"
 import chatRouter from "./routes/chat.routes.js"
 import userRouter from "./routes/user.routes.js"
 import analysisRouter from "./routes/analysis.routes.js"
+import { initializeVectorStore } from "./utils/ragInit.js"
 
 const app = express()
 
+// Warm up RAG Vector Store on start so it's ready for users
+initializeVectorStore().catch(err => console.error("RAG Warmup Failed:", err));
 
 dbConnect()
 

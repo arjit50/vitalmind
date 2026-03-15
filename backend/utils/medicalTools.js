@@ -13,15 +13,10 @@ export const medicalKnowledgeLookup = tool(
             console.log(`Searching medical knowledge base for: ${topic}`);
 
             const vectorStore = await initializeVectorStore();
-            const results = await vectorStore.similaritySearch(topic, 2);
+            const results = await vectorStore.similaritySearch(topic, 4); // Increased k for better synthesis context
 
             if (results && results.length > 0) {
-                const combinedContext = results.map(doc => {
-                    const source = doc.metadata.source ? `(Source: ${doc.metadata.source.split('\\').pop()})` : "(Verified Source)";
-                    return `${source}\n${doc.pageContent}`;
-                }).join("\n\n---\n\n");
-
-                return `Verified medical information found:\n\n${combinedContext}`;
+                return results.map(doc => doc.pageContent).join("\n\n---\n\n");
             }
 
             return "No specific local documents found on this topic. Providing general guidance.";
@@ -46,8 +41,17 @@ export const medicalKnowledgeLookup = tool(
 export const emergencyResourceLookup = tool(
     async ({ city, specialty }) => {
         try {
-            // Sanitize inputs to remove any potential newlines
-            const cleanCity = (city || "India").replace(/\n/g, " ").trim();
+            if (!city) {
+                return `I notice you haven't specified a location. To find the nearest ${specialty || "medical facilities"}, please provide your city or area. 
+
+In the meantime, here is universal emergency guidance:
+1. Call your local emergency number (102/108 in India, 911 in the US).
+2. Go to the nearest Multi-specialty Hospital or Emergency Room immediately.
+3. Stay on the line with emergency dispatchers for instructions.`;
+            }
+
+            // Sanitize inputs
+            const cleanCity = city.replace(/\n/g, " ").trim();
             const cleanSpecialty = (specialty || "medical hospitals and specialist doctors").replace(/\n/g, " ").trim();
 
             const query = `Top 5 ${cleanSpecialty} in ${cleanCity}`;
@@ -67,28 +71,22 @@ export const emergencyResourceLookup = tool(
                 });
 
                 if (response.data && response.data.results) {
-                    searchResults = response.data.results.map((r, i) =>
-                        `${i + 1}. ${r.title}\n   ${r.content}\n   [Link to Source](${r.url})`
-                    ).join("\n\n");
+                    searchResults = response.data.results.map((r, i) => {
+                        // Extract only the actual name (stripping common SEO suffixes)
+                        const cleanName = r.title.split(/ - | \| |: /)[0].trim();
+                        const briefInfo = r.content.length > 120 ? r.content.slice(0, 120).trim() + "..." : r.content.trim();
+                        return `${i + 1}. ${cleanName}\n   ${briefInfo}`;
+                    }).join("\n\n");
                 }
             }
 
-            const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
-
-            let responseText = `I have looked for the best medical resources for you.\n\n`;
-
             if (searchResults) {
-                responseText += `Top 5 Recommended Facilities:\n\n${searchResults}\n\n`;
+                return `Top 5 Recommended Facilities in ${cleanCity}:\n\n${searchResults}`;
             } else {
-                responseText += `1. <a href="${searchUrl}" target="_blank" style="color: #2196f3; text-decoration: underline;">Click here to view Top Hospitals and Doctors in ${cleanCity}</a>\n\n`;
+                const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+                return `I found some highly-rated facilities in ${cleanCity}. You can see the full list and ratings here: <a href="${searchUrl}" target="_blank" style="color: #2196f3; text-decoration: underline;">View Results</a>`;
             }
 
-            responseText += `Emergency Steps:\n`;
-            responseText += `2. Local Emergency Number: 102 / 108 (India) or 911 (US)\n`;
-            responseText += `3. Nearest Government/Private Multi-specialty Hospital.\n\n`;
-            responseText += `Please do not delay if you are in pain or distress.`;
-
-            return responseText;
 
         } catch (error) {
             console.error("Search Tool Error:", error);

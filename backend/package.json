@@ -13,11 +13,13 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@huggingface/transformers": "^3.8.1",
     "@langchain/community": "^1.1.9",
     "@langchain/core": "^1.1.17",
     "@langchain/groq": "^1.0.3",
     "axios": "^1.13.2",
     "bcrypt": "^6.0.0",
+    "cloudinary": "^2.5.1",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
@@ -25,9 +27,11 @@
     "groq-sdk": "^0.37.0",
     "jsonwebtoken": "^9.0.3",
     "langchain": "^1.2.15",
+    "memory-vector-store": "^1.0.10",
     "mongoose": "^9.0.1",
     "multer": "^2.0.2",
-    "pdf-parse": "^2.4.5",
+    "multer-storage-cloudinary": "^4.0.0",
+    "pdf-parse": "^1.1.1",
     "tesseract.js": "^7.0.0"
   }
 }

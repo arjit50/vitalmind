@@ -50,6 +50,15 @@ export const chatAPI = {
         return response.data;
     },
 
+    uploadMedicineImage: async (chatId, formData) => {
+        const response = await api.post(`/chat/${chatId}/image`, formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+        return response.data;
+    },
+
     deleteChat: async (chatId) => {
         const response = await api.delete(`/chat/${chatId}`);
         return response.data;

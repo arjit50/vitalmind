@@ -90,24 +90,30 @@ export const sendMessage = async (req, res) => {
             return res.status(404).json({ message: "Chat not found" });
         }
 
+        // 2. Fetch History for Agent (BEFORE adding current message)
+        const previousMessages = await Message.find({ chatId })
+            .sort({ timestamp: -1 })
+            .limit(10); 
+        
+        console.log(`[DB] Fetched ${previousMessages.length} previous messages for chat ${chatId}`);
+
+        // Reverse to get chronological order
+        const conversationHistory = previousMessages.reverse().map(msg => ({
+            role: msg.sender,
+            content: msg.content,
+        }));
+
+        // 3. Add current user message to DB
+        console.log(`[DB] Creating user message: "${content.substring(0, 50)}..."`);
         const userMessage = await Message.create({
             chatId,
             sender: "user",
             content: content.trim(),
         });
 
-        // 2. Fetch History for Agent
-        const previousMessages = await Message.find({ chatId })
-            .sort({ timestamp: 1 })
-            .limit(10); // Context window
-
-        const conversationHistory = previousMessages.map(msg => ({
-            role: msg.sender,
-            content: msg.content,
-        }));
-
-        // 3. Run Medical Agent
-        const aiResponse = await runMedicalAgent(content, conversationHistory);
+        // 4. Run Medical Agent
+        console.log(`[Agent] Calling runMedicalAgent with ${conversationHistory.length} history items`);
+        const aiResponse = await runMedicalAgent(content.trim(), conversationHistory);
 
         // Update title if it's the first message
         if (previousMessages.length <= 1) { // Changed to <= 1 because we just added the user message
