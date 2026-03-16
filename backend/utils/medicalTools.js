@@ -16,7 +16,11 @@ export const medicalKnowledgeLookup = tool(
             const results = await vectorStore.similaritySearch(topic, 4); // Increased k for better synthesis context
 
             if (results && results.length > 0) {
-                return results.map(doc => doc.pageContent).join("\n\n---\n\n");
+                return results.map(doc => {
+                    const source = doc.metadata.source || "Unknown Source";
+                    const page = doc.metadata.loc?.pageNumber || doc.metadata.page || "N/A";
+                    return `[SOURCE: ${source}, PAGE: ${page}]\n${doc.pageContent}`;
+                }).join("\n\n---\n\n");
             }
 
             return "No specific local documents found on this topic. Providing general guidance.";

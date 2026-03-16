@@ -1,195 +1,145 @@
 import fs from "fs";
 import path from "path";
-import { createRequire } from "module";
-const require = createRequire(import.meta.url);
-const _pdfParse = require("pdf-parse");
-// pdf-parse CJS interop — the function may be at .default in ESM context
-const pdf = typeof _pdfParse === "function" ? _pdfParse : _pdfParse.default;
+import { Pinecone } from "@pinecone-database/pinecone";
+import { PineconeStore } from "@langchain/pinecone";
+import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
+import { Embeddings } from "@langchain/core/embeddings";
+import { PDFLoader } from "@langchain/community/document_loaders/fs/pdf";
+import { Document } from "@langchain/core/documents";
 
+// ─── Constants ─────────────────────────────────────────────────────────────
 const DOCS_PATH = "./data/medical_docs";
-const CACHE_PATH = "./data/embeddings_cache.json";
 
-// ─── Embedding Model (lazy loaded) ──────────────────────────────────────────
-
+// ─── Local Embedding Model (Free, Fast, Llama-compatible) ───────────────────
 let _extractor = null;
-
 const getExtractor = async () => {
     if (_extractor) return _extractor;
     const { pipeline } = await import("@huggingface/transformers");
+    // Using 384-dimensional MiniLM (industry standard for fast RAG)
     _extractor = await pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2");
     return _extractor;
 };
 
-const embed = async (text) => {
-    const extractor = await getExtractor();
-    const output = await extractor(text, { pooling: "mean", normalize: true });
-    return Array.from(output.data);
-};
-
-// ─── Cosine Similarity ───────────────────────────────────────────────────────
-
-const cosineSimilarity = (a, b) => {
-    let dot = 0, normA = 0, normB = 0;
-    for (let i = 0; i < a.length; i++) {
-        dot   += a[i] * b[i];
-        normA += a[i] * a[i];
-        normB += b[i] * b[i];
-    }
-    return dot / (Math.sqrt(normA) * Math.sqrt(normB) + 1e-10);
-};
-
-// ─── Text Splitter ───────────────────────────────────────────────────────────
-
-const splitText = (text, chunkSize = 1000, overlap = 200) => {
-    const chunks = [];
-    const sentences = text.split(/(?<=[.!?])\s+/);
-    let current = "";
-
-    for (const sentence of sentences) {
-        if ((current + " " + sentence).length > chunkSize && current.length > 0) {
-            chunks.push(current.trim());
-            current = current.slice(-overlap) + " " + sentence;
-        } else {
-            current += " " + sentence;
+class LocalEmbeddings extends Embeddings {
+    constructor() { super({}); }
+    async embedDocuments(texts) {
+        const extractor = await getExtractor();
+        const embeddings = [];
+        for (const text of texts) {
+            const output = await extractor(text, { pooling: "mean", normalize: true });
+            embeddings.push(Array.from(output.data));
         }
+        return embeddings;
     }
-    if (current.trim()) chunks.push(current.trim());
-    return chunks;
-};
-
-// ─── In-Memory Semantic Vector Store ────────────────────────────────────────
-
-class SemanticVectorStore {
-    constructor() {
-        this.entries = []; // { embedding, pageContent, metadata }
-    }
-
-    async addDocuments(docs) {
-        const total = docs.length;
-        for (let i = 0; i < total; i++) {
-            const doc = docs[i];
-            const embedding = await embed(doc.pageContent);
-            this.entries.push({ embedding, pageContent: doc.pageContent, metadata: doc.metadata });
-            if ((i + 1) % 50 === 0) console.log(`   Embedded ${i + 1}/${total} chunks...`);
-        }
-    }
-
-    async similaritySearch(query, k = 3) {
-        const queryEmbedding = await embed(query);
-        const scored = this.entries.map(entry => ({
-            pageContent: entry.pageContent,
-            metadata: entry.metadata,
-            score: cosineSimilarity(queryEmbedding, entry.embedding),
-        }));
-
-        return scored
-            .sort((a, b) => b.score - a.score)
-            .slice(0, k)
-            .map(({ pageContent, metadata }) => ({ pageContent, metadata }));
-    }
-
-    saveToDisk() {
-        try {
-            fs.writeFileSync(CACHE_PATH, JSON.stringify(this.entries));
-            console.log(`✓ Embeddings cached to ${CACHE_PATH}`);
-        } catch (err) {
-            console.error("Failed to save embeddings cache:", err);
-        }
-    }
-
-    loadFromDisk() {
-        if (fs.existsSync(CACHE_PATH)) {
-            try {
-                this.entries = JSON.parse(fs.readFileSync(CACHE_PATH));
-                console.log(`✓ Loaded ${this.entries.length} cached embeddings from disk.`);
-                return true;
-            } catch (err) {
-                console.error("Failed to load embeddings cache:", err);
-            }
-        }
-        return false;
+    async embedQuery(text) {
+        const extractor = await getExtractor();
+        const output = await extractor(text, { pooling: "mean", normalize: true });
+        return Array.from(output.data);
     }
 }
 
-// ─── Singleton Store ─────────────────────────────────────────────────────────
+const embeddings = new LocalEmbeddings();
 
-let vectorStore = null;
-
-export const initializeVectorStore = async () => {
-    if (vectorStore) return vectorStore;
-
-    console.log("Initializing Semantic Medical Vector Store...");
-    vectorStore = new SemanticVectorStore();
-    
-    // 1. Try Loading from Cache First (Instant)
-    if (vectorStore.loadFromDisk()) {
-        return vectorStore;
-    }
-
-    // 2. Otherwise, Ingest and Embed (Takes time, but once only)
-    await ingestDocs(vectorStore);
-    vectorStore.saveToDisk();
-    
-    return vectorStore;
+// ─── Pinecone Configuration ───────────────────────────────────────────────
+let _pineconeIndex = null;
+const getPineconeIndex = () => {
+    if (_pineconeIndex) return _pineconeIndex;
+    const pc = new Pinecone({ apiKey: process.env.PINECONE_API_KEY });
+    _pineconeIndex = pc.Index(process.env.PINECONE_INDEX_NAME);
+    return _pineconeIndex;
 };
 
-// ─── Document Ingestion ──────────────────────────────────────────────────────
+// ─── Core Logic (Right Manner) ──────────────────────────────────────────────
 
-export const ingestDocs = async (store) => {
+/**
+ * Main function to index a single document into Pinecone.
+ * Follows the user's preferred structure.
+ */
+export async function indexDocument(filePath) {
+    try {
+        console.log(`[RAG] Loading document: ${path.basename(filePath)}`);
+        let docs = [];
+        
+        if (filePath.endsWith(".pdf")) {
+            const loader = new PDFLoader(filePath);
+            docs = await loader.load();
+        } else if (filePath.endsWith(".txt")) {
+            const content = fs.readFileSync(filePath, "utf-8");
+            docs = [new Document({ pageContent: content, metadata: { source: path.basename(filePath) } })];
+        }
+
+        if (docs.length === 0) throw new Error("No content found in document.");
+
+        // 1. Chunking
+        const textSplitter = new RecursiveCharacterTextSplitter({
+            chunkSize: 1000,
+            chunkOverlap: 200,
+        });
+        const chunkedDocs = await textSplitter.splitDocuments(docs);
+        console.log(`[RAG] Chunking completed: ${chunkedDocs.length} segments.`);
+
+        // 2. Database Connection
+        console.log("[RAG] Configuring Pinecone client...");
+        const pineconeIndex = getPineconeIndex();
+        console.log("[RAG] Pinecone configured.");
+
+        // 3. Store in Vector Database (Right Manner - with batching for reliability)
+        console.log("[RAG] Storing data in Pinecone...");
+        
+        // We initialize the store first from existing index
+        const vectorStore = await PineconeStore.fromExistingIndex(embeddings, { pineconeIndex });
+        
+        // Perform batch storage to prevent timeouts/errors on large PDFs
+        const batchSize = 50;
+        for (let i = 0; i < chunkedDocs.length; i += batchSize) {
+            const batch = chunkedDocs.slice(i, i + batchSize);
+            process.stdout.write(`  - Progress: ${Math.min(i + batchSize, chunkedDocs.length)}/${chunkedDocs.length}\r`);
+            await vectorStore.addDocuments(batch);
+        }
+        process.stdout.write("\n");
+
+        console.log(`[RAG] ✓ Data stored successfully: ${path.basename(filePath)}`);
+        return true;
+    } catch (error) {
+        console.error(`[RAG] Ingestion error for ${filePath}:`, error.message);
+        throw error;
+    }
+}
+
+/**
+ * Initialize the vector store for querying.
+ */
+export const initializeVectorStore = async () => {
+    try {
+        if (!process.env.PINECONE_INDEX_NAME) return null;
+        return await PineconeStore.fromExistingIndex(embeddings, {
+            pineconeIndex: getPineconeIndex(),
+        });
+    } catch (err) {
+        console.warn("[RAG] Index not ready or connected. Queries may fail until documents are indexed.");
+        return null;
+    }
+};
+
+/**
+ * Bulk ingestion of all files in the docs directory.
+ */
+export const ingestDocs = async () => {
     try {
         if (!fs.existsSync(DOCS_PATH)) {
             fs.mkdirSync(DOCS_PATH, { recursive: true });
             return;
         }
-
         const files = fs.readdirSync(DOCS_PATH);
-        console.log(`Analyzing ${files.length} medical document(s) for RAG...`);
-
-        const allDocs = [];
-
+        if (files.length === 0) {
+            console.log("[RAG] No medical documents found in data folder.");
+            return;
+        }
+        
         for (const file of files) {
-            const filePath = path.join(DOCS_PATH, file);
-            let content = "";
-
-            if (file.endsWith(".pdf")) {
-                try {
-                    const dataBuffer = fs.readFileSync(filePath);
-                    const data = await pdf(dataBuffer);
-                    content = data.text;
-                } catch (err) {
-                    continue;
-                }
-            } else if (file.endsWith(".txt")) {
-                content = fs.readFileSync(filePath, "utf-8");
-            }
-
-            if (content) {
-                // Remove PDF artifacts and normalize whitespace
-                const clean = content
-                    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, "") // Remove non-printable chars
-                    .replace(/\u0000/g, "") // Remove null chars
-                    .replace(/□|■|○|●/g, "") // Remove bullet artifacts
-                    .replace(/\r\n/g, "\n")
-                    .replace(/(\w)-\s*\n(\w)/g, "$1$2") // Join hyphenated words across lines
-                    .replace(/\n\s*\n/g, "\n\n") // Normalize double newlines
-                    .replace(/[ \t]+/g, " ") // Normalize horizontal whitespace
-                    .trim();
-
-                const chunks = splitText(clean, 1000, 200);
-                for (const chunk of chunks) {
-                    allDocs.push({ pageContent: chunk, metadata: { source: file } });
-                }
-            }
+            await indexDocument(path.join(DOCS_PATH, file));
         }
-
-        if (allDocs.length > 0) {
-            console.log(`Generating embeddings for ${allDocs.length} segments. This happens only once...`);
-            await store.addDocuments(allDocs);
-            console.log("✓ Ingestion complete.");
-        }
-
-    } catch (error) {
-        console.error("Ingestion error:", error);
+    } catch (err) {
+        console.error("[RAG] Bulk ingestion failed:", err.message);
     }
 };
-
