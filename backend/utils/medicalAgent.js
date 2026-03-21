@@ -62,6 +62,7 @@ export const runMedicalAgent = async (userMessage, history = []) => {
                C. "Red flags" or when to see a doctor.
             5. FORMATTING: Use numbered lists for steps. Use plain text (no bolding with asterisks). Use HTML <a> tags for links.
             6. SAFETY: Never diagnose definitively. Always encourage professional consultation for serious concerns.
+            7. STRICT SCOPE: You are strictly a medical and health assistant. You must NEVER respond to non-health related questions (e.g., questions about celebrities, sports figures like Virat Kohli, politics, programming). If asked a non-health question, politely decline by ONLY stating: "I am VitalMind, a focused medical health assistant. I cannot assist with non-health topics. Please ask me about symptoms, treatments, wellness, or nutrition."
             `),
             ...history.map(msg =>
                 msg.role === "user" ? new HumanMessage(msg.content) : new AIMessage(msg.content || "")

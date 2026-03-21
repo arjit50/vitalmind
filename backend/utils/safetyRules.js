@@ -27,7 +27,18 @@ const OUT_OF_SCOPE_KEYWORDS = [
     "recipe", // unless nutrition related, but simple filter for now
     "finance",
     "stock",
-    "investment"
+    "investment",
+    "cricket",
+    "football",
+    "basketball",
+    "sports",
+    "virat kohli",
+    "messi",
+    "ronaldo",
+    "actor",
+    "actress",
+    "celebrity",
+    "who is"
 ];
 
 export const checkEmergency = (input) => {

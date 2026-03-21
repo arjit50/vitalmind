@@ -55,7 +55,10 @@ export const analyzeReport = async (req, res) => {
 
         // --- 2. Agentic Core ---
         console.log("Starting Agentic Report Analysis...");
+        console.log("Extracted OCR Text (First 100 chars):", text.substring(0, 100));
+        
         const analysis = await runReportAnalysis(text);
+        console.log("Analysis Result Generated Successfully");
 
         // Cleanup
         fs.unlinkSync(imagePath);
