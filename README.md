@@ -112,6 +112,4 @@ vitalmind/
 
 VitalMind is an AI health assistant and is **not** a replacement for professional medical advice, diagnosis, or treatment. Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition. In case of emergency, contact your local emergency services immediately.
 
-## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
