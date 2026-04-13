@@ -8,12 +8,21 @@ const EMERGENCY_KEYWORDS = [
     "kill myself",
     "end my life",
     "swallowed pills",
-    "poison"
+    "poison",
+    "ambulance",
+    "helpline",
+    "emergency",
+    "911",
+    "112",
+    "108"
 ];
 
 const OUT_OF_SCOPE_KEYWORDS = [
     "program",
     "code",
+    "coding",
+    "python",
+    "javascript",
     "hack",
     "exploit",
     "bomb",
@@ -24,7 +33,7 @@ const OUT_OF_SCOPE_KEYWORDS = [
     "movie",
     "song",
     "joke",
-    "recipe", // unless nutrition related, but simple filter for now
+    "recipe", 
     "finance",
     "stock",
     "investment",
@@ -35,10 +44,6 @@ const OUT_OF_SCOPE_KEYWORDS = [
     "virat kohli",
     "messi",
     "ronaldo",
-    "actor",
-    "actress",
-    "celebrity",
-    "who is"
 ];
 
 export const checkEmergency = (input) => {
@@ -48,7 +53,11 @@ export const checkEmergency = (input) => {
 
 export const checkOutOfScope = (input) => {
     const normalizedInput = input.toLowerCase();
-    return OUT_OF_SCOPE_KEYWORDS.find(keyword => normalizedInput.includes(keyword));
+    // Use regex to match full words to avoid blocking partial matches (e.g., 'code' blocking 'codeine')
+    return OUT_OF_SCOPE_KEYWORDS.find(keyword => {
+        const regex = new RegExp(`\\b${keyword}\\b`, 'i');
+        return regex.test(normalizedInput);
+    });
 };
 
 export const performSafetyCheck = (input) => {

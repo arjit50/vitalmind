@@ -40,45 +40,55 @@ const getModel = () => {
 
 export const runMedicalAgent = async (userMessage, history = []) => {
     log(`Medical Agent received request: "${userMessage}" | History items: ${history.length}`);
-    history.forEach((msg, i) => {
-        log(`History[${i}]: ${msg.role}: ${msg.content?.substring(0, 30)}...`);
-    });
-    // Remove the temporary return to allow full processing
+    
     try {
         const agentModel = getModel();
 
-        // Convert simple history objects to LangChain Message objects
-        const messages = [
-            new SystemMessage(`You are VitalMind, a friendly and expert Medical AI Assistant.
-            Your goal is to provide sensible, accurate, and professional health guidance.
+        const systemMessage = `You are VitalMind, an expert Medical AI Assistant.
+        Provide professional, empathetic, and accurate health guidance.
 
-            CORE PROTOCOLS:
-            1. NATURAL GREETINGS: If the user just says "hi", "hello", "hey", or "how are you", respond naturally and warmly like a human assistant. Do NOT provide a structured medical disclaimer or first aid steps for a simple greeting.
-            2. ANALYZE CONTEXT: When tools (RAG) provide "CONTEXT FROM MEDICAL DOCUMENTS", use that information to build a clear answer. If the context is missing, use your general medical knowledge.
-            3. SYNTHESIZE, DON'T COPY: Explain information in your own words. Be empathetic and professional.
-            4. HIERARCHY (FOR HEALTH QUERIES):
-               A. Immediate First Aid (if needed).
-               B. Direct, structured answer.
-               C. "Red flags" or when to see a doctor.
-            5. FORMATTING: Use numbered lists for steps. Use plain text (no bolding with asterisks). Use HTML <a> tags for links.
-            6. SAFETY: Never diagnose definitively. Always encourage professional consultation for serious concerns.
-            7. STRICT SCOPE: You are strictly a medical and health assistant. You must NEVER respond to non-health related questions (e.g., questions about celebrities, sports figures like Virat Kohli, politics, programming). If asked a non-health question, politely decline by ONLY stating: "I am VitalMind, a focused medical health assistant. I cannot assist with non-health topics. Please ask me about symptoms, treatments, wellness, or nutrition."
-            `),
+        STRICT PROTOCOLS:
+        1. NATURAL GREETINGS: Respond warmly to simple greetings. No disclaimer needed for "hi".
+        2. CONTEXT: Prioritize information from medical tools if available.
+        3. FORMATTING: Use numbered lists for steps. Plain text (no bolding (no ** or __)). Use HTML <a> for links.
+        4. SCOPE (CRITICAL): You are strictly a medical and health assistant. 
+           - IN-SCOPE: Symptoms, treatments, wellness, nutrition, medical facilities, emergency services (ambulance), and health helpline numbers.
+           - OUT-OF-SCOPE: Celebrities, sports, coding, movies, politics, finance, etc.
+           - IF OUT-OF-SCOPE: You MUST politely decline with ONLY the mandatory refusal string.
+           - MANDATORY REFUSAL STRING: "I am VitalMind, a focused medical health assistant. I cannot assist with non-health topics. Please ask me about symptoms, treatments, wellness, or nutrition."
+           - DO NOT provide any other information or helpful additions for out-of-scope queries.
+        `;
+
+        const messages = [
+            new SystemMessage(systemMessage),
             ...history.map(msg =>
                 msg.role === "user" ? new HumanMessage(msg.content) : new AIMessage(msg.content || "")
             ),
             new HumanMessage(userMessage),
         ];
 
-        // 1. Invoke the model to see if it wants to use a tool
-        log("Invoking agent model for tool-use check...");
-        const aiMsg = await agentModel.invoke(messages);
+        // 1. Tool Call Detection
+        log("Invoking agent model...");
+        let aiMsg;
+        try {
+            aiMsg = await agentModel.invoke(messages);
+        } catch (err) {
+            log(`Initial invocation failed: ${err.message}`);
+            // Fallback: try a direct invocation without tools if tool-calling failed
+            const simpleModel = new ChatGroq({
+                apiKey: process.env.GROQ_API_KEY,
+                model: "llama-3.1-8b-instant",
+                temperature: 0.5,
+            });
+            aiMsg = await simpleModel.invoke(messages);
+        }
+
         log(`Model response received. Tool calls: ${aiMsg.tool_calls?.length || 0}`);
 
-        // 2. If tool calls exist, execute them (in parallel for speed)
+        // 2. Execute Tools if requested
         if (aiMsg.tool_calls && aiMsg.tool_calls.length > 0) {
             const toolMsgs = await Promise.all(aiMsg.tool_calls.map(async (toolCall) => {
-                log(`Executing tool: ${toolCall.name} with args: ${JSON.stringify(toolCall.args)}`);
+                log(`Executing tool: ${toolCall.name}`);
                 let toolOutput = "";
                 try {
                     if (toolCall.name === "medical_knowledge_lookup") {
@@ -86,42 +96,35 @@ export const runMedicalAgent = async (userMessage, history = []) => {
                     } else if (toolCall.name === "emergency_resource_lookup") {
                         toolOutput = await emergencyResourceLookup.invoke(toolCall.args);
                     }
-                    log(`Tool ${toolCall.name} returned ${toolOutput?.length || 0} chars.`);
                 } catch (err) {
                     log(`Tool ${toolCall.name} failed: ${err.message}`);
-                    toolOutput = "No specific local information found, but proceeding with general medical guidance.";
+                    toolOutput = "General medical knowledge will be used.";
                 }
 
-                return {
+                return new ToolMessage({
                     tool_call_id: toolCall.id,
-                    role: "tool",
-                    name: toolCall.name,
                     content: toolOutput || "No information found."
-                };
+                });
             }));
 
-            const finalResponse = await agentModel.invoke([
-                ...messages,
-                aiMsg,
-                ...toolMsgs.map(m => new ToolMessage({
-                    tool_call_id: m.tool_call_id,
-                    content: m.content
-                })),
-                new HumanMessage("Using the provided context (conversation history + source docs + your knowledge), provide a concise, sensible response. If the user asked a personal question (like their name), answer it based on history. If they asked a medical question, be structured and professional.")
-            ]);
-            log("Final synthesis complete.");
-
-            return (finalResponse.content || "").trim();
+            try {
+                const finalResponse = await agentModel.invoke([
+                    ...messages,
+                    aiMsg,
+                    ...toolMsgs,
+                    new HumanMessage("Synthesize the tool results into a professional medical response.")
+                ]);
+                return (finalResponse.content || "").trim();
+            } catch (err) {
+                log(`Final synthesis failed: ${err.message}`);
+                return (aiMsg.content || "").trim() || "I have processed your request. How else can I help?";
+            }
         }
 
-        // No tool used, just return the text
-        const content = aiMsg.content || "";
-        log("No tools used. Returning direct content.");
-        return content.trim() || "I'm VitalMind, your health assistant. How can I help you today?";
+        return (aiMsg.content || "I'm VitalMind, your health assistant. How can I help you today?").trim();
 
     } catch (error) {
-        log(`Medical Agent Error: ${error.message}`);
-        console.error("Medical Agent Error:", error);
-        return "I apologize, but I'm having trouble processing your request right now. Please try again later.";
+        log(`Medical Agent Fatal Error: ${error.message}`);
+        return "I apologize, but I'm having trouble processing your health request right now. Please try again or rephrase your question.";
     }
 };

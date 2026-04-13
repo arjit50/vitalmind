@@ -19,7 +19,7 @@ dbConnect()
 
 
 app.use(cors({
-    origin: 'http://localhost:5173',
+    origin: ['http://localhost:5173', 'https://vitalmind-xi.vercel.app'],
     credentials: true 
 }))
 

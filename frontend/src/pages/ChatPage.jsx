@@ -195,7 +195,13 @@ const ChatPage = () => {
       setMessages(prev => prev.slice(0, -1));
 
       // Get error message from response if available (e.g., safety violation)
-      const serverMessage = error.response?.data?.message || 'Sorry, there was an error processing your message. Please try again.';
+      let serverMessage = 'Sorry, there was an error processing your message. Please try again.';
+      
+      if (error.response?.data?.message) {
+        serverMessage = error.response.data.message;
+      } else if (error.message && error.message.includes('timeout')) {
+        serverMessage = 'Request timed out. Please try a shorter message or check your connection.';
+      }
 
       const errorMsg = {
         sender: 'ai',

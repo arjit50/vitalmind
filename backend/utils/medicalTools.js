@@ -7,13 +7,22 @@ import axios from "axios";
  * Shared Medical Tools for all agents.
  */
 
+let _vectorStore = null;
+
 export const medicalKnowledgeLookup = tool(
     async ({ topic }) => {
         try {
             console.log(`Searching medical knowledge base for: ${topic}`);
 
-            const vectorStore = await initializeVectorStore();
-            const results = await vectorStore.similaritySearch(topic, 4); // Increased k for better synthesis context
+            if (!_vectorStore) {
+                _vectorStore = await initializeVectorStore();
+            }
+
+            if (!_vectorStore) {
+                return "Medical knowledge base is temporarily unavailable. Providing general guidance based on AI knowledge.";
+            }
+
+            const results = await _vectorStore.similaritySearch(topic, 4); 
 
             if (results && results.length > 0) {
                 return results.map(doc => {
