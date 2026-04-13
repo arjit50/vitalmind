@@ -2,7 +2,7 @@
 
 VitalMind is a premium, AI-powered health assistant designed to provide accurate, empathetic, and professional medical guidance. Built with a modern tech stack involving RAG (Retrieval-Augmented Generation) and advanced LLMs, VitalMind helps users understand symptoms, treatments, and wellness while ensuring medical safety protocols.
 
-![VitalMind Health Assistant](https://images.unsplash.com/photo-1576091160550-217359f42f8c?auto=format&fit=crop&q=80&w=2070)
+![VitalMind Health Assistant](https://drive.google.com/file/d/1Skt4HMFkJu_hYGdnOPGai9znU3P5EfAY/view?usp=sharing)
 
 ## ✨ Features
 
