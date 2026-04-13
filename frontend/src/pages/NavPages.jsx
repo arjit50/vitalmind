@@ -151,13 +151,13 @@ export const Emergency = () => {
         <div className="emergency-item flex flex-col sm:flex-row justify-center gap-4">
           <button className="bg-[#2DD4BF] text-black font-black py-4 px-10 rounded-full hover:bg-emerald-300 transition-all active:scale-95 flex items-center justify-center gap-3 text-base">
             <PhoneCall size={20} />
-            Call Emergency (911)
+            Call Emergency (112)
           </button>
 
-          <button className="bg-zinc-900 text-white font-bold py-4 px-10 rounded-full hover:bg-zinc-800 border border-zinc-800 transition-all flex items-center justify-center gap-3 text-base">
+          <a href="https://www.google.com/search?q=hospitals+near+me" target="_blank" rel="noopener noreferrer" className="bg-zinc-900 text-white font-bold py-4 px-10 rounded-full hover:bg-zinc-800 border border-zinc-800 transition-all flex items-center justify-center gap-3 text-base no-underline">
             <MapPin size={20} />
             Nearby Hospitals
-          </button>
+          </a>
         </div>
 
         <p className="emergency-item mt-8 text-zinc-600 text-[10px] uppercase tracking-[0.3em]">

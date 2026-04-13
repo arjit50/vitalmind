@@ -49,7 +49,7 @@ export const emergencyResourceLookup = tool(
                 return `I notice you haven't specified a location. To find the nearest ${specialty || "medical facilities"}, please provide your city or area. 
 
 In the meantime, here is universal emergency guidance:
-1. Call your local emergency number (102/108 in India, 911 in the US).
+1. Call your local emergency number (112/108 in India).
 2. Go to the nearest Multi-specialty Hospital or Emergency Room immediately.
 3. Stay on the line with emergency dispatchers for instructions.`;
             }

@@ -60,7 +60,7 @@ export const performSafetyCheck = (input) => {
         return {
             isSafe: false,
             type: "EMERGENCY",
-            message: "⚠️ This sounds like a medical emergency. Please call your local emergency services immediately (e.g., 911, 112, or 108). I am an AI and cannot provide emergency medical assistance."
+            message: "⚠️ This sounds like a medical emergency. Please call your local emergency services immediately (e.g., 112, or 108). I am an AI and cannot provide emergency medical assistance."
         };
     }
 

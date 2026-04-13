@@ -121,10 +121,10 @@ const Navbar = () => {
                 </Link>
 
                 <div className="hidden md:flex items-center gap-10 text-sm font-medium text-gray-300">
-                    <Link to="/" className="nav-item-link hover:text-emerald-400 transition-colors no-underline">Home</Link>
-                    <Link to="/specialists" className="nav-item-link hover:text-emerald-400 transition-colors no-underline">Specialists</Link>
-                    <Link to="/reviews" className="nav-item-link hover:text-emerald-400 transition-colors no-underline">Reviews</Link>
-                    <Link to="/emergency" className="nav-item-link hover:text-emerald-400 transition-colors no-underline">Emergency</Link>
+                    <Link to="/" className={`nav-item-link hover:text-emerald-400 transition-colors no-underline ${location.pathname === '/' ? 'text-emerald-400' : ''}`}>Home</Link>
+                    <Link to="/specialists" className={`nav-item-link hover:text-emerald-400 transition-colors no-underline ${location.pathname === '/specialists' ? 'text-emerald-400' : ''}`}>Specialists</Link>
+                    <Link to="/reviews" className={`nav-item-link hover:text-emerald-400 transition-colors no-underline ${location.pathname === '/reviews' ? 'text-emerald-400' : ''}`}>Reviews</Link>
+                    <Link to="/emergency" className={`nav-item-link hover:text-emerald-400 transition-colors no-underline ${location.pathname === '/emergency' ? 'text-emerald-400' : ''}`}>Emergency</Link>
                 </div>
 
                 <div className="hidden md:flex items-center">
@@ -187,10 +187,10 @@ const Navbar = () => {
                         </div>
 
                         <div className="flex flex-col gap-8 text-2xl font-bold text-gray-200">
-                            <Link to="/" onClick={() => setIsMenuOpen(false)} className="mobile-nav-item hover:text-emerald-400 transition-colors no-underline">Home</Link>
-                            <Link to="/specialists" onClick={() => setIsMenuOpen(false)} className="mobile-nav-item hover:text-emerald-400 transition-colors no-underline">Specialists</Link>
-                            <Link to="/reviews" onClick={() => setIsMenuOpen(false)} className="mobile-nav-item hover:text-emerald-400 transition-colors no-underline">Reviews</Link>
-                            <Link to="/emergency" onClick={() => setIsMenuOpen(false)} className="mobile-nav-item hover:text-emerald-400 transition-colors no-underline">Emergency</Link>
+                            <Link to="/" onClick={() => setIsMenuOpen(false)} className={`mobile-nav-item hover:text-emerald-400 transition-colors no-underline ${location.pathname === '/' ? 'text-emerald-400' : ''}`}>Home</Link>
+                            <Link to="/specialists" onClick={() => setIsMenuOpen(false)} className={`mobile-nav-item hover:text-emerald-400 transition-colors no-underline ${location.pathname === '/specialists' ? 'text-emerald-400' : ''}`}>Specialists</Link>
+                            <Link to="/reviews" onClick={() => setIsMenuOpen(false)} className={`mobile-nav-item hover:text-emerald-400 transition-colors no-underline ${location.pathname === '/reviews' ? 'text-emerald-400' : ''}`}>Reviews</Link>
+                            <Link to="/emergency" onClick={() => setIsMenuOpen(false)} className={`mobile-nav-item hover:text-emerald-400 transition-colors no-underline ${location.pathname === '/emergency' ? 'text-emerald-400' : ''}`}>Emergency</Link>
                         </div>
 
                         <div className="mt-auto pt-10 border-t border-gray-800">
