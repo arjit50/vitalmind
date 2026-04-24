@@ -16,7 +16,9 @@ const getExtractor = async () => {
     if (_extractor) return _extractor;
     const { pipeline } = await import("@huggingface/transformers");
     // Using 384-dimensional MiniLM (industry standard for fast RAG)
+    console.log(`[RAG] Loading Embedding Model: Xenova/all-MiniLM-L6-v2...`);
     _extractor = await pipeline("feature-extraction", "Xenova/all-MiniLM-L6-v2");
+    console.log(`[RAG] Embedding Model Loaded.`);
     return _extractor;
 };
 
@@ -111,12 +113,16 @@ export async function indexDocument(filePath) {
  */
 export const initializeVectorStore = async () => {
     try {
-        if (!process.env.PINECONE_INDEX_NAME) return null;
-        return await PineconeStore.fromExistingIndex(embeddings, {
+        console.log("[RAG] Connecting to Pinecone index...");
+        const store = await PineconeStore.fromExistingIndex(embeddings, {
             pineconeIndex: getPineconeIndex(),
         });
+        console.log("[RAG] Vector store warmup: embedding a test query...");
+        await embeddings.embedQuery("test");
+        console.log("[RAG] Vector store warmup: SUCCESS.");
+        return store;
     } catch (err) {
-        console.warn("[RAG] Index not ready or connected. Queries may fail until documents are indexed.");
+        console.warn("[RAG] Warmup Failed or Index not ready. Queries may fail until documents are indexed:", err.message);
         return null;
     }
 };

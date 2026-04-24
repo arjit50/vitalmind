@@ -15,6 +15,7 @@ export const medicalKnowledgeLookup = tool(
             console.log(`Searching medical knowledge base for: ${topic}`);
 
             if (!_vectorStore) {
+                console.log("Initializing vector store for lookup...");
                 _vectorStore = await initializeVectorStore();
             }
 

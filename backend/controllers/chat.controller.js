@@ -130,8 +130,13 @@ export const sendMessage = async (req, res) => {
 
         res.status(200).json({ userMessage, aiMessage });
     } catch (error) {
-        console.error("Send message error:", error);
-        res.status(500).json({ message: error.message });
+        console.error("!!! SEND MESSAGE FATAL ERROR !!!");
+        console.error("Message:", error.message);
+        console.error("Stack:", error.stack);
+        res.status(500).json({ 
+            message: "Sorry, there was an error processing your message. Please try again.",
+            details: error.message 
+        });
     }
 };
 

@@ -17,11 +17,11 @@ const log = (msg) => {
 
 // --- 2. Initialize Model (Lazy Load) ---
 
-let modelWithTools;
+let agentModel;
 
 const getModel = () => {
     const targetModel = "llama-3.1-8b-instant";
-    if (!modelWithTools || modelWithTools.modelName !== targetModel) {
+    if (!agentModel) {
         log(`Initializing AI Model: ${targetModel}`);
         const model = new ChatGroq({
             apiKey: process.env.GROQ_API_KEY,
@@ -29,9 +29,9 @@ const getModel = () => {
             temperature: 0.5,
         });
         // Bind tools to the model
-        modelWithTools = model.bindTools([medicalKnowledgeLookup, emergencyResourceLookup]);
+        agentModel = model.bindTools([medicalKnowledgeLookup, emergencyResourceLookup]);
     }
-    return modelWithTools;
+    return agentModel;
 };
 
 
@@ -42,7 +42,7 @@ export const runMedicalAgent = async (userMessage, history = []) => {
     log(`Medical Agent received request: "${userMessage}" | History items: ${history.length}`);
     
     try {
-        const agentModel = getModel();
+        const model = getModel();
 
         const systemMessage = `You are VitalMind, an expert Medical AI Assistant.
         Provide professional, empathetic, and accurate health guidance.
@@ -71,9 +71,9 @@ export const runMedicalAgent = async (userMessage, history = []) => {
         log("Invoking agent model...");
         let aiMsg;
         try {
-            aiMsg = await agentModel.invoke(messages);
+            aiMsg = await model.invoke(messages);
         } catch (err) {
-            log(`Initial invocation failed: ${err.message}`);
+            log(`Initial invocation failed: ${err.message}. Trying fallback...`);
             // Fallback: try a direct invocation without tools if tool-calling failed
             const simpleModel = new ChatGroq({
                 apiKey: process.env.GROQ_API_KEY,
@@ -83,10 +83,15 @@ export const runMedicalAgent = async (userMessage, history = []) => {
             aiMsg = await simpleModel.invoke(messages);
         }
 
-        log(`Model response received. Tool calls: ${aiMsg.tool_calls?.length || 0}`);
+        if (!aiMsg) {
+            throw new Error("No response from AI model.");
+        }
+
+        log(`Model response received. Content length: ${aiMsg.content?.length || 0} | Tool calls: ${aiMsg.tool_calls?.length || 0}`);
 
         // 2. Execute Tools if requested
         if (aiMsg.tool_calls && aiMsg.tool_calls.length > 0) {
+            log(`Processing ${aiMsg.tool_calls.length} tool calls...`);
             const toolMsgs = await Promise.all(aiMsg.tool_calls.map(async (toolCall) => {
                 log(`Executing tool: ${toolCall.name}`);
                 let toolOutput = "";
@@ -95,29 +100,46 @@ export const runMedicalAgent = async (userMessage, history = []) => {
                         toolOutput = await medicalKnowledgeLookup.invoke(toolCall.args);
                     } else if (toolCall.name === "emergency_resource_lookup") {
                         toolOutput = await emergencyResourceLookup.invoke(toolCall.args);
+                    } else {
+                        toolOutput = "Tool not found.";
                     }
                 } catch (err) {
-                    log(`Tool ${toolCall.name} failed: ${err.message}`);
-                    toolOutput = "General medical knowledge will be used.";
+                    log(`Tool ${toolCall.name} execution failed: ${err.message}`);
+                    toolOutput = "Local medical knowledge base search failed. Using internal knowledge.";
                 }
 
                 return new ToolMessage({
                     tool_call_id: toolCall.id,
-                    content: toolOutput || "No information found."
+                    content: String(toolOutput || "No information found.")
                 });
             }));
 
             try {
-                const finalResponse = await agentModel.invoke([
+                log("Synthesizing final response with tool results...");
+                const finalResponse = await model.invoke([
                     ...messages,
                     aiMsg,
                     ...toolMsgs,
-                    new HumanMessage("Synthesize the tool results into a professional medical response.")
                 ]);
-                return (finalResponse.content || "").trim();
+                return (finalResponse.content || "").trim() || "I have processed your request. How else can I help?";
             } catch (err) {
                 log(`Final synthesis failed: ${err.message}`);
-                return (aiMsg.content || "").trim() || "I have processed your request. How else can I help?";
+                // If synthesis fails, try one last time with a simple model and a flattened prompt
+                try {
+                    const simpleModel = new ChatGroq({
+                        apiKey: process.env.GROQ_API_KEY,
+                        model: "llama-3.1-8b-instant",
+                        temperature: 0.3,
+                    });
+                    const combinedContext = toolMsgs.map(m => m.content).join("\n\n");
+                    const fallbackRes = await simpleModel.invoke([
+                        new SystemMessage(systemMessage),
+                        new HumanMessage(`Based on this information: ${combinedContext}\n\nPlease answer the user: ${userMessage}`)
+                    ]);
+                    return (fallbackRes.content || "").trim();
+                } catch (innerErr) {
+                    return (aiMsg.content || "").trim() || "I apologize, but I'm having trouble synthesizing a medical response right now.";
+                }
             }
         }
 
