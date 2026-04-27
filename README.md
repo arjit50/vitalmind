@@ -4,6 +4,9 @@ VitalMind is a premium, AI-powered health assistant designed to provide accurate
 
 ![VitalMind Health Assistant](https://drive.google.com/file/d/1Skt4HMFkJu_hYGdnOPGai9znU3P5EfAY/view?usp=sharing)
 
+## 🔗 Live Demo
+[https://vitalmind-xi.vercel.app](https://vitalmind-xi.vercel.app)
+
 ## ✨ Features
 
 - **🧠 Intelligent Diagnosis**: Advanced AI chatbot for medical guidance on symptoms and wellness.
@@ -78,7 +81,7 @@ npm install
 
 Create a `.env` file in the `frontend` folder:
 ```env
-VITE_API_URL=https://vitalmind.onrender.com/api
+VITE_API_URL=your_backend_api_url
 ```
 
 Start the frontend:
